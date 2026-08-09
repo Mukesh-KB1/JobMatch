@@ -11,6 +11,7 @@ import applicationRoutes from './routes/applicationRoutes.js';
 
 export function createApp() {
   const app = express();
+  app.set('trust proxy', 1);
 
   app.use(cors({ origin: config.frontendOrigin, credentials: true }));
   app.use(express.json());

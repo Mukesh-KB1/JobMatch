@@ -30,12 +30,10 @@ export const config = {
 
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
 
-  smtp: {
-    host: process.env.SMTP_HOST || '',
-    port: num('SMTP_PORT', 587),
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
+  brevo: {
+    apiKey: process.env.BREVO_API_KEY || '',
     fromEmail: process.env.DIGEST_FROM_EMAIL || 'no-reply@jobmatch.local',
+    fromName: process.env.DIGEST_FROM_NAME || 'JobMatch',
   },
 
   adzuna: {

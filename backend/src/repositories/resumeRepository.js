@@ -16,6 +16,9 @@ export const resumeRepository = {
   listForUser(userId) {
     return Resume.find({ userId }).sort({ createdAt: -1 });
   },
+  countForUser(userId) {
+    return Resume.countDocuments({ userId });
+  },
   findActiveForUser(userId) {
     return Resume.findOne({ userId, isActive: true, parseStatus: 'parsed' }).sort({ createdAt: -1 });
   },
@@ -41,6 +44,36 @@ export const resumeRepository = {
   },
   updateForUser(id, userId, update) {
     return Resume.findOneAndUpdate({ _id: id, userId }, update, { new: true });
+  },
+  // Atomically makes exactly one resume active for a user: first flips the
+  // target on (also verifying ownership - returns null if it doesn't exist
+  // or belongs to someone else), then flips every OTHER resume off in the
+  // same transaction. Ordered this way (target first) so a not-found/
+  // not-owned id can never end up deactivating every other resume before
+  // failing.
+  async setActiveForUser(id, userId) {
+    if (!mongoose.isValidObjectId(id)) return null;
+    const session = await mongoose.startSession();
+    try {
+      let result = null;
+      await session.withTransaction(async () => {
+        const target = await Resume.findOneAndUpdate(
+          { _id: id, userId },
+          { $set: { isActive: true } },
+          { new: true, session }
+        );
+        if (!target) return;
+        await Resume.updateMany(
+          { userId, isActive: true, _id: { $ne: target._id } },
+          { $set: { isActive: false } },
+          { session }
+        );
+        result = target;
+      });
+      return result;
+    } finally {
+      session.endSession();
+    }
   },
   deleteForUser(id, userId) {
     return Resume.findOneAndDelete({ _id: id, userId });

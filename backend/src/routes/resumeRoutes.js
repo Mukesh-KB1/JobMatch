@@ -34,9 +34,19 @@ router.get('/:id', loadOwned(resumeRepository.findByIdForUser, 'resume'), (req, 
   res.json({ resume: req.resume });
 });
 
+// Lets a user with multiple resumes choose which one is used for matching.
+router.patch(
+  '/:id/activate',
+  loadOwned(resumeRepository.findByIdForUser, 'resume'),
+  asyncHandler(async (req, res) => {
+    const resume = await resumeService.setActive(req.resume._id, req.user.id);
+    res.json({ resume });
+  })
+);
+
 router.delete('/:id', loadOwned(resumeRepository.findByIdForUser, 'resume'), asyncHandler(async (req, res) => {
-  await resumeRepository.deleteForUser(req.resume._id, req.user.id);
-  res.status(204).end();
+  await resumeService.deleteForUser(req.resume._id, req.user.id);
+  res.status(200).json({ deleted: true });
 }));
 
 export default router;

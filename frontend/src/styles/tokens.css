@@ -231,7 +231,10 @@ main { display: block; min-height: calc(100vh - var(--nav-h)); }
 .list-row-body { flex: 1; min-width: 0; }
 .list-row-title { font-weight: 560; font-size: .92rem; color: var(--ink); }
 .list-row-sub { font-size: 12.5px; color: var(--ink-muted); margin-top: 2px; }
-.list-row-meta { font-size: 12px; color: var(--ink-faint); flex-shrink: 0; }
+.list-row-meta { font-size: 12px; color: var(--ink-faint); flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.list-row-actions { display: flex; gap: 6px; }
+.btn-danger-text { color: var(--band-weak); }
+.btn-danger-text:hover:not(:disabled) { background: rgba(220, 38, 38, .08); color: var(--band-weak); }
 .list-row-active-tag { color: var(--signal); font-size: 11px; font-weight: 650; }
 .list-row-inactive { opacity: .58; }
 

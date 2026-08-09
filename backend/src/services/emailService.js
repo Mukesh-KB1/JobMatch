@@ -1,35 +1,41 @@
-import nodemailer from 'nodemailer';
 import { config } from '../config/env.js';
 
-// Generic SMTP transport - works with Brevo free tier, Gmail SMTP, or any
-// provider. Intentionally not hardcoded to one vendor's SDK.
-function buildTransport() {
-  if (!config.smtp.host) {
-    // No SMTP configured (e.g. local dev without keys) - log instead of throwing,
-    // so the rest of the app remains usable.
-    return null;
-  }
-  return nodemailer.createTransport({
-    host: config.smtp.host,
-    port: config.smtp.port,
-    secure: config.smtp.port === 465,
-    auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
-  });
-}
+const BREVO_SEND_URL = 'https://api.brevo.com/v3/smtp/email';
 
-let transport = buildTransport();
-
+// Sends via Brevo's HTTP transactional email API - deliberately NOT raw SMTP.
+// Most free-tier PaaS hosts (Render included) block outbound SMTP ports
+// (25/465/587) to prevent spam abuse, which made every email silently hang
+// or time out in production even though it worked fine locally. This is a
+// plain HTTPS POST, same as any other external API call this app already
+// makes (Gemini, Adzuna, Jooble), so it isn't affected by that restriction.
 async function send({ to, subject, html }) {
-  if (!transport) {
-    console.warn(`[emailService] SMTP not configured - skipping send to ${to}: ${subject}`);
+  if (!config.brevo.apiKey) {
+    // No API key configured (e.g. local dev without keys) - log instead of
+    // throwing, so the rest of the app remains usable without email set up.
+    console.warn(`[emailService] BREVO_API_KEY not configured - skipping send to ${to}: ${subject}`);
     return { skipped: true };
   }
-  return transport.sendMail({
-    from: config.smtp.fromEmail,
-    to,
-    subject,
-    html,
+
+  const res = await fetch(BREVO_SEND_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'api-key': config.brevo.apiKey,
+    },
+    body: JSON.stringify({
+      sender: { email: config.brevo.fromEmail, name: config.brevo.fromName },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
   });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Brevo API send failed (${res.status}): ${body}`);
+  }
+  return res.json();
 }
 
 export const emailService = {
@@ -81,10 +87,5 @@ export const emailService = {
       html: `<p>Hi ${user.name}, here are your best-scoring matches right now:</p>
         <table style="border-collapse:collapse;width:100%;">${rows}</table>`,
     });
-  },
-
-  // Test-only hook to swap the transport with a mock.
-  __setTransportForTests(mockTransport) {
-    transport = mockTransport;
   },
 };

@@ -72,10 +72,18 @@ export const matchService = {
   // Gemini calls, and falls back to cheap keyword-overlap sorting for jobs
   // that haven't been scored yet.
   async listJobsWithScores(userId, { skip = 0, limit = 20, country = '', search = '' } = {}) {
-    const [jobs, resume] = await Promise.all([
-      jobRepository.listActive({ skip, limit, country, search }),
-      resumeRepository.findActiveForUser(userId),
-    ]);
+    // Fetch the resume first (not in parallel with jobs) because, when the
+    // user hasn't typed an explicit search, we use their resume's own top
+    // skills as an IMPLICIT search. Without this, "relevant jobs first"
+    // only ever applied within whatever single page got fetched by
+    // recency - a MERN-stack resume's best-fit jobs could be sitting on
+    // page 6 and never surface. Routing through the same weighted text
+    // index used by manual search fixes that: MongoDB ranks the ENTIRE
+    // active pool by skill relevance before pagination even happens.
+    const resume = await resumeRepository.findActiveForUser(userId);
+    const effectiveSearch = search || (resume?.skills?.length ? resume.skills.slice(0, 8).join(' ') : '');
+
+    const jobs = await jobRepository.listActive({ skip, limit, country, search: effectiveSearch });
     const jobIds = jobs.map((j) => j._id);
     const [matches, applications] = await Promise.all([
       matchRepository.findManyForUserByJobIds(userId, jobIds),
@@ -97,10 +105,14 @@ export const matchService = {
       };
     });
 
-    // With an active search, `jobs` already came back ordered by MongoDB's
-    // text relevance score (title matches first) - that ordering IS the
-    // point of searching, so it must be preserved. Only fall back to
-    // sorting by resume fit when there's no search term to rank by.
+    // With an EXPLICIT search (the user actually typed something), `jobs`
+    // came back ordered by MongoDB's text relevance to that literal query -
+    // that ordering IS the point of searching, so it's preserved exactly.
+    // Otherwise (no explicit search - whether or not an implicit one was
+    // used above to pick the candidate pool), re-sort by actual fit: cached
+    // AI match score where one exists, keyword overlap otherwise. This is
+    // what puts "Score my fit"-confirmed matches above merely
+    // skill-adjacent jobs within the page.
     if (!search) {
       enriched.sort((a, b) => b.relevance - a.relevance);
     }

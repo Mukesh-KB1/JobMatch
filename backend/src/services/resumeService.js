@@ -10,6 +10,7 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
 ]);
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB cap
+const MAX_RESUMES_PER_USER = 5;
 
 async function extractText(filePath, mimeType) {
   if (mimeType === 'application/pdf') {
@@ -38,6 +39,14 @@ export const resumeService = {
 
   async uploadAndParse(userId, file) {
     this.validateUpload(file);
+
+    const existingCount = await resumeRepository.countForUser(userId);
+    if (existingCount >= MAX_RESUMES_PER_USER) {
+      throw new HttpError(
+        400,
+        `You can keep up to ${MAX_RESUMES_PER_USER} resumes. Delete one before uploading another.`
+      );
+    }
 
     const resume = await resumeRepository.createAsActive({
       userId,
@@ -74,5 +83,36 @@ export const resumeService = {
 
   getForUser(id, userId) {
     return resumeRepository.findByIdForUser(id, userId);
+  },
+
+  // Explicit "use this resume for matching" - lets a user with several
+  // resumes (e.g. one MERN-stack-focused, one more backend-only) choose
+  // which one drives their scores and job ranking, instead of it silently
+  // always being whichever was uploaded most recently.
+  async setActive(id, userId) {
+    const updated = await resumeRepository.setActiveForUser(id, userId);
+    if (!updated) {
+      throw new HttpError(404, 'Not found.');
+    }
+    return updated;
+  },
+
+  // Deletes a resume, and if it happened to be the active one, automatically
+  // promotes the next-most-recent remaining resume to active - so a user
+  // never ends up with zero active resume (and therefore no matching/
+  // ranking) just because they deleted one without thinking to pick a new
+  // active one first.
+  async deleteForUser(id, userId) {
+    const deleted = await resumeRepository.deleteForUser(id, userId);
+    if (!deleted) {
+      throw new HttpError(404, 'Not found.');
+    }
+    if (deleted.isActive) {
+      const remaining = await resumeRepository.listForUser(userId);
+      if (remaining.length > 0) {
+        await resumeRepository.setActiveForUser(remaining[0]._id, userId);
+      }
+    }
+    return deleted;
   },
 };

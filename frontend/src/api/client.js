@@ -54,6 +54,7 @@ export const api = {
     return request('/resumes', { method: 'POST', body: form, isForm: true });
   },
   deleteResume: (id) => request(`/resumes/${id}`, { method: 'DELETE' }),
+  activateResume: (id) => request(`/resumes/${id}/activate`, { method: 'PATCH' }),
 
   // Jobs
   listJobs: (page = 1, country = '', search = '') =>

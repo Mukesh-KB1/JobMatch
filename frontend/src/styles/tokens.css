@@ -122,6 +122,7 @@ main { display: block; min-height: calc(100vh - var(--nav-h)); }
   font-size: .87rem;
   cursor: pointer;
   user-select: none;
+  text-decoration: none;
   box-shadow: var(--shadow-sm);
   transition: transform .22s var(--ease), box-shadow .25s ease, border-color .2s ease, background .25s ease, color .2s ease;
 }
@@ -140,6 +141,7 @@ main { display: block; min-height: calc(100vh - var(--nav-h)); }
   border-color: var(--signal-bright);
   background: var(--signal-wash);
   color: var(--signal-deep);
+  text-decoration: none;
   box-shadow: 0 10px 22px rgba(67, 56, 202, .14);
 }
 .btn:hover:not(:disabled)::after { opacity: 1; transform: translateX(105%); }

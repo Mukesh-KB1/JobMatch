@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -129,7 +130,11 @@ export default function Navbar() {
             )}
           </div>
         ) : (
-          <NavLink to="/login" className="btn btn-primary">Sign in</NavLink>
+          // Pointless to show "Sign in" while already on the login/register
+          // page - clicking it would just reload the page you're on.
+          !['/login', '/register'].includes(location.pathname) && (
+            <NavLink to="/login" className="btn btn-primary">Sign in</NavLink>
+          )
         )}
       </div>
     </header>

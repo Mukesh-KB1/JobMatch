@@ -22,58 +22,40 @@ export const resumeRepository = {
   findActiveForUser(userId) {
     return Resume.findOne({ userId, isActive: true, parseStatus: 'parsed' }).sort({ createdAt: -1 });
   },
-  // Deactivates every prior resume and inserts the new one atomically, so a
-  // user is never left with two "active" resumes if the process dies mid-way.
+  // Deactivates every prior resume, then inserts the new one. Previously
+  // wrapped in a multi-document transaction for atomicity, but Atlas M0
+  // (free tier) transactions can hang for up to ~2 minutes retrying
+  // transient errors before failing - which surfaced to users as the app
+  // "freezing" on any add/switch/delete. Plain sequential writes trade a
+  // theoretical (and here harmless) moment of "two active resumes" for
+  // requests that actually complete quickly and reliably. If the second
+  // write fails, findActiveForUser's `.sort({createdAt:-1})` still makes
+  // the newest one win, so there's no broken state to clean up.
   async createAsActive(data) {
-    const session = await mongoose.startSession();
-    try {
-      let created;
-      await session.withTransaction(async () => {
-        await Resume.updateMany(
-          { userId: data.userId, isActive: true },
-          { $set: { isActive: false } },
-          { session }
-        );
-        const docs = await Resume.create([data], { session });
-        created = docs[0];
-      });
-      return created;
-    } finally {
-      session.endSession();
-    }
+    await Resume.updateMany({ userId: data.userId, isActive: true }, { $set: { isActive: false } });
+    return Resume.create(data);
   },
   updateForUser(id, userId, update) {
     return Resume.findOneAndUpdate({ _id: id, userId }, update, { new: true });
   },
-  // Atomically makes exactly one resume active for a user: first flips the
-  // target on (also verifying ownership - returns null if it doesn't exist
-  // or belongs to someone else), then flips every OTHER resume off in the
-  // same transaction. Ordered this way (target first) so a not-found/
-  // not-owned id can never end up deactivating every other resume before
-  // failing.
+  // Makes exactly one resume active for a user: flips the target on first
+  // (also verifying ownership - returns null if it doesn't exist or
+  // belongs to someone else) so a not-found/not-owned id can never end up
+  // deactivating every other resume before failing. See createAsActive's
+  // comment above for why this isn't wrapped in a transaction.
   async setActiveForUser(id, userId) {
     if (!mongoose.isValidObjectId(id)) return null;
-    const session = await mongoose.startSession();
-    try {
-      let result = null;
-      await session.withTransaction(async () => {
-        const target = await Resume.findOneAndUpdate(
-          { _id: id, userId },
-          { $set: { isActive: true } },
-          { new: true, session }
-        );
-        if (!target) return;
-        await Resume.updateMany(
-          { userId, isActive: true, _id: { $ne: target._id } },
-          { $set: { isActive: false } },
-          { session }
-        );
-        result = target;
-      });
-      return result;
-    } finally {
-      session.endSession();
-    }
+    const target = await Resume.findOneAndUpdate(
+      { _id: id, userId },
+      { $set: { isActive: true } },
+      { new: true }
+    );
+    if (!target) return null;
+    await Resume.updateMany(
+      { userId, isActive: true, _id: { $ne: target._id } },
+      { $set: { isActive: false } }
+    );
+    return target;
   },
   deleteForUser(id, userId) {
     return Resume.findOneAndDelete({ _id: id, userId });

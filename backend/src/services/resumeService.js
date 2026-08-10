@@ -107,6 +107,13 @@ export const resumeService = {
     if (!deleted) {
       throw new HttpError(404, 'Not found.');
     }
+    // Best-effort file cleanup. Never let a missing/already-gone file turn
+    // a successful DB delete into a 500 - log and move on.
+    if (deleted.storagePath) {
+      fs.unlink(deleted.storagePath).catch((err) => {
+        console.error('[resumeService] Failed to remove resume file from disk:', err.message);
+      });
+    }
     if (deleted.isActive) {
       const remaining = await resumeRepository.listForUser(userId);
       if (remaining.length > 0) {

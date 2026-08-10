@@ -4,6 +4,19 @@ import { config } from './config/env.js';
 import { startCronJobs } from './cron/scheduler.js';
 import { ensureFreshPoolOnStartup } from './services/ingestionService.js';
 
+// Without these, an unhandled promise rejection or a throw outside an
+// Express request handler kills the whole Node process silently (no crash
+// log, nothing) - which looks to the frontend like every route suddenly
+// went unreachable, including totally unrelated ones like /auth/login.
+// Logging here turns a mystery "everything just stopped working" into a
+// visible stack trace pointing at the real bug, instead of masking it.
+process.on('unhandledRejection', (reason) => {
+  console.error('[server] Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[server] Uncaught exception:', err);
+});
+
 async function main() {
   await connectDB();
   console.log('[server] Connected to MongoDB');

@@ -36,6 +36,8 @@ export const resumeRepository = {
         );
         const docs = await Resume.create([data], { session });
         created = docs[0];
+      }, {
+        writeConcern: { w: 'majority', wtimeout: 8000 },
       });
       return created;
     } finally {
@@ -69,6 +71,8 @@ export const resumeRepository = {
           { session }
         );
         result = target;
+      }, {
+        writeConcern: { w: 'majority', wtimeout: 8000 },
       });
       return result;
     } finally {

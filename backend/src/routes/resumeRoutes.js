@@ -30,22 +30,22 @@ router.get(
 );
 
 // Ownership-enforced: 404 (not 403) if this resume doesn't belong to req.user.
-router.get('/:id', loadOwned(resumeRepository.findByIdForUser, 'resume'), (req, res) => {
-  res.json({ resume: req.resume });
+router.get('/:id', loadOwned(resumeRepository.findByIdForUser, 'resumeDoc'), (req, res) => {
+  res.json({ resume: req.resumeDoc });
 });
 
 // Lets a user with multiple resumes choose which one is used for matching.
 router.patch(
   '/:id/activate',
-  loadOwned(resumeRepository.findByIdForUser, 'resume'),
+  loadOwned(resumeRepository.findByIdForUser, 'resumeDoc'),
   asyncHandler(async (req, res) => {
-    const resume = await resumeService.setActive(req.resume._id, req.user.id);
+    const resume = await resumeService.setActive(req.resumeDoc._id, req.user.id);
     res.json({ resume });
   })
 );
 
-router.delete('/:id', loadOwned(resumeRepository.findByIdForUser, 'resume'), asyncHandler(async (req, res) => {
-  await resumeService.deleteForUser(req.resume._id, req.user.id);
+router.delete('/:id', loadOwned(resumeRepository.findByIdForUser, 'resumeDoc'), asyncHandler(async (req, res) => {
+  await resumeService.deleteForUser(req.resumeDoc._id, req.user.id);
   res.status(200).json({ deleted: true });
 }));
 

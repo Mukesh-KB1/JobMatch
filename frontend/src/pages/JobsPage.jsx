@@ -118,7 +118,7 @@ export default function JobsPage() {
 
       {!user?.emailVerified && (
         <div className="banner banner-warning" style={{ marginTop: 16 }}>
-          Your email isn't verified yet - verify it to receive match digests.
+          Your email isn't verified yet - verify it to score your fit, apply, and receive match digests.
         </div>
       )}
 
@@ -141,7 +141,7 @@ export default function JobsPage() {
       {!loading && results && results.length > 0 && (
         <div className="jobs-list">
           {results.map((entry) => (
-            <JobCard key={entry.job._id} entry={entry} />
+            <JobCard key={entry.job._id} entry={entry} verified={!!user?.emailVerified} />
           ))}
         </div>
       )}

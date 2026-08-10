@@ -10,7 +10,7 @@ function toPlainText(value) {
   return (element.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
-export default function JobCard({ entry, onScored, onApplied }) {
+export default function JobCard({ entry, onScored, onApplied, verified }) {
   const { job, aiMatch, relevance, applied: appliedFromServer } = entry;
   const [scoring, setScoring] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -26,6 +26,7 @@ export default function JobCard({ entry, onScored, onApplied }) {
   }, [job._id]);
 
   async function handleScore() {
+    if (!verified) return;
     setScoring(true);
     setError('');
     try {
@@ -36,6 +37,7 @@ export default function JobCard({ entry, onScored, onApplied }) {
   }
 
   function handleApply() {
+    if (!verified) return;
     setError('');
     sessionStorage.setItem(`jobmatch_application_pending_${job._id}`, 'true');
     setAwaitingConfirmation(true);
@@ -86,11 +88,23 @@ export default function JobCard({ entry, onScored, onApplied }) {
         )}
 
         <div className="job-card-actions">
-          <button className="btn" type="button" onClick={handleScore} disabled={scoring}>
+          <button
+            className="btn"
+            type="button"
+            onClick={handleScore}
+            disabled={scoring || !verified}
+            title={!verified ? 'Verify your email to score jobs against your resume' : undefined}
+          >
             {scoring ? <span className="spinner" /> : null}
             {localMatch ? 'Re-score my fit' : 'Score my fit'}
           </button>
-          <button className="btn btn-primary" type="button" onClick={handleApply} disabled={applying || applied}>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={handleApply}
+            disabled={applying || applied || !verified}
+            title={!verified ? 'Verify your email to apply' : undefined}
+          >
             {applied ? 'Applied \u2713' : 'Apply'}
           </button>
           <button className="btn btn-quiet" type="button" onClick={() => setShowDetails(true)}>View details</button>

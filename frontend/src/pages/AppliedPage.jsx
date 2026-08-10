@@ -2,18 +2,22 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client.js';
 import ScoreGauge from '../components/ScoreGauge.jsx';
 import { LoadingRow, ErrorBanner, EmptyState } from '../components/Feedback.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function AppliedPage() {
+  const { user } = useAuth();
+  const verified = !!user?.emailVerified;
   const [applications, setApplications] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!verified) { setLoading(false); return; }
     api.listApplications()
       .then((data) => setApplications(data.applications))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [verified]);
 
   return (
     <div className="page page-narrow">
@@ -26,14 +30,18 @@ export default function AppliedPage() {
       </div>
 
       <div style={{ marginTop: 24 }}>
-        <ErrorBanner message={error} />
-        {loading && <LoadingRow label="Loading your applications…" />}
+        {!verified && (
+          <EmptyState title="Verify your email first" hint="Once your email is verified you'll be able to apply to jobs, and they'll show up here." />
+        )}
 
-        {!loading && applications && applications.length === 0 && (
+        {verified && <ErrorBanner message={error} />}
+        {verified && loading && <LoadingRow label="Loading your applications…" />}
+
+        {verified && !loading && applications && applications.length === 0 && (
           <EmptyState title="No applications yet" hint="Head to the Jobs page and hit Apply on something that fits." />
         )}
 
-        {!loading && applications && applications.length > 0 && (
+        {verified && !loading && applications && applications.length > 0 && (
           <div className="list">
             {applications.map((a) => (
               <div key={a._id} className="panel list-row">

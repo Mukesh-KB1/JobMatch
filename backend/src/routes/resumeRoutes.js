@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireVerified } from '../middleware/auth.js';
 import { loadOwned } from '../middleware/ownership.js';
 import { uploadResume } from '../config/upload.js';
 import { resumeService } from '../services/resumeService.js';
@@ -11,6 +11,7 @@ function asyncHandler(fn) {
 }
 
 router.use(requireAuth);
+router.use(requireVerified);
 
 router.post(
   '/',

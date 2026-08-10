@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
+import User from '../models/User.js';
 
 // req.user.id (from the verified JWT) is the ONLY source of truth for "who
 // is asking". No route ever trusts a userId supplied in params or body for
@@ -17,6 +18,25 @@ export function requireAuth(req, res, next) {
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
+  }
+}
+
+// Gate for anything beyond browsing: resumes, AI scoring, and applications
+// all require a verified email. Must run after requireAuth (needs req.user).
+// Job *listing* deliberately does NOT use this - unverified users can still
+// browse jobs, they just can't act on them yet.
+export async function requireVerified(req, res, next) {
+  try {
+    const user = await User.findById(req.user.id).select('emailVerified');
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: 'Please verify your email to use this feature.', code: 'EMAIL_NOT_VERIFIED' });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
 }
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireVerified } from '../middleware/auth.js';
 import { loadOwned } from '../middleware/ownership.js';
 import { applicationService } from '../services/applicationService.js';
 import { applicationRepository } from '../repositories/applicationRepository.js';
@@ -11,6 +11,7 @@ function asyncHandler(fn) {
 }
 
 router.use(requireAuth);
+router.use(requireVerified);
 
 router.get(
   '/',
